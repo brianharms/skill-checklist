@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Example App — Test Checklist</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    padding: 40px 20px;
+    line-height: 1.5;
+  }
+  .container { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; color: #e6edf3; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #484f58; margin-bottom: 32px; }
+
+  .progress-wrap {
+    position: sticky; top: 0; z-index: 20;
+    background: #0d1117; padding: 12px 0 8px;
+  }
+  .progress-bar {
+    width: 100%; height: 4px; background: #21262d;
+    border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 2px; width: 0%;
+    transition: width 0.4s ease;
+    background: linear-gradient(90deg, #3fb950, #58a6ff);
+  }
+  .progress-stats {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 6px; font-size: 11px; color: #484f58;
+  }
+  .stat-pass { color: #3fb950; }
+  .stat-fail { color: #f85149; }
+  .stat-attn { color: #d29922; }
+  .stat-skip { color: #484f58; }
+
+  .section { margin-bottom: 32px; }
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px; user-select: none;
+  }
+  .section-header h2 {
+    font-size: 14px; font-weight: 600; color: #e6edf3;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .section-port {
+    font-size: 11px; color: #484f58; font-weight: 400;
+    background: #161b22; padding: 2px 8px; border-radius: 10px;
+    border: 1px solid #21262d;
+  }
+  .section-count { font-size: 11px; color: #484f58; margin-left: auto; }
+  .section-divider { height: 1px; background: #21262d; margin-bottom: 16px; }
+
+  .item {
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 6px;
+    border: 1px solid transparent; transition: all 0.2s ease;
+    background: #161b22;
+  }
+  .item:hover { border-color: #21262d; }
+  .item.status-pass { border-left: 3px solid #3fb950; }
+  .item.status-fail { border-left: 3px solid #f85149; }
+  .item.status-attention { border-left: 3px solid #d29922; }
+  .item.status-skip { border-left: 3px solid #30363d; }
+
+  .item-top { display: flex; align-items: flex-start; gap: 12px; }
+  .item-content { flex: 1; }
+  .item-title { font-size: 14px; color: #c9d1d9; font-weight: 500; }
+  .item-desc { font-size: 12px; color: #484f58; margin-top: 2px; }
+
+  .item-steps {
+    margin-top: 8px; padding: 8px 12px;
+    background: #0d1117; border-radius: 6px;
+    border: 1px solid #21262d;
+  }
+  .item-steps ol {
+    margin: 0; padding-left: 18px;
+    font-size: 12px; color: #8b949e;
+  }
+  .item-steps li { margin-bottom: 4px; }
+  .item-steps li:last-child { margin-bottom: 0; }
+  .item-steps .expect {
+    color: #3fb950; font-weight: 500;
+  }
+  .item-steps .action {
+    color: #58a6ff;
+  }
+  .steps-toggle {
+    font-size: 11px; color: #484f58; cursor: pointer;
+    background: none; border: none; padding: 2px 6px;
+    transition: color 0.15s; margin-top: 6px;
+  }
+  .steps-toggle:hover { color: #c9d1d9; }
+  .item-steps.collapsed { display: none; }
+
+  .item.status-pass .item-title { color: #7ee787; }
+  .item.status-fail .item-title { color: #ffa198; }
+  .item.status-attention .item-title { color: #e3b341; }
+  .item.status-skip .item-title { color: #484f58; text-decoration: line-through; }
+
+  .verdict-row {
+    display: flex; gap: 6px; margin-top: 10px; align-items: center;
+  }
+  .verdict-btn {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 12px; border: 1.5px solid #30363d;
+    background: transparent; color: #484f58; cursor: pointer;
+    transition: all 0.15s ease; text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .verdict-btn:hover { border-color: #58a6ff; color: #c9d1d9; }
+  .verdict-btn.active-pass { background: #0f2d16; border-color: #3fb950; color: #3fb950; }
+  .verdict-btn.active-fail { background: #3d1113; border-color: #f85149; color: #f85149; }
+  .verdict-btn.active-attention { background: #2d2206; border-color: #d29922; color: #d29922; }
+  .verdict-btn.active-skip { background: #161b22; border-color: #30363d; color: #484f58; }
+
+  .comment-toggle {
+    font-size: 11px; color: #484f58; cursor: pointer;
+    margin-left: auto; padding: 3px 8px; border: none;
+    background: none; transition: color 0.15s;
+  }
+  .comment-toggle:hover { color: #c9d1d9; }
+  .comment-toggle.has-comment { color: #58a6ff; }
+
+  .comment-area { display: none; margin-top: 8px; }
+  .comment-area.visible { display: block; }
+  .comment-area textarea {
+    width: 100%; min-height: 48px; max-height: 200px;
+    background: #0d1117; border: 1px solid #21262d; border-radius: 6px;
+    color: #c9d1d9; font-family: inherit; font-size: 12px;
+    padding: 8px 10px; resize: vertical; outline: none;
+  }
+  .comment-area textarea:focus { border-color: #58a6ff; }
+  .comment-area textarea::placeholder { color: #30363d; }
+
+  .submit-wrap {
+    position: sticky; bottom: 0; z-index: 20;
+    background: linear-gradient(transparent, #0d1117 30%);
+    padding: 24px 0 12px; text-align: center;
+  }
+  .submit-btn {
+    font-size: 14px; font-weight: 600; padding: 12px 32px;
+    border-radius: 8px; border: none; cursor: pointer;
+    background: #238636; color: #fff; transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+  .submit-btn:hover { background: #2ea043; }
+  .submit-btn:disabled { background: #21262d; color: #484f58; cursor: default; }
+  .submit-hint { font-size: 11px; color: #484f58; margin-top: 6px; }
+
+  .output-overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .output-overlay.visible { display: flex; }
+  .output-box {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    width: 90%; max-width: 700px; max-height: 80vh; display: flex;
+    flex-direction: column; overflow: hidden;
+  }
+  .output-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; border-bottom: 1px solid #21262d;
+  }
+  .output-header h3 { font-size: 15px; color: #e6edf3; }
+  .output-actions { display: flex; gap: 8px; }
+  .output-actions button {
+    font-size: 12px; padding: 6px 14px; border-radius: 6px;
+    border: 1px solid #30363d; background: #21262d; color: #c9d1d9;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .output-actions button:hover { border-color: #58a6ff; }
+  .output-actions button.primary { background: #238636; border-color: #238636; color: #fff; }
+  .output-actions button.primary:hover { background: #2ea043; }
+  .output-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+  .output-body pre {
+    font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px;
+    color: #c9d1d9; white-space: pre-wrap; word-break: break-word; line-height: 1.6;
+  }
+  .copied-toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #238636; color: #fff; padding: 8px 20px; border-radius: 6px;
+    font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; z-index: 200;
+  }
+  .copied-toast.visible { opacity: 1; }
+  .reset-btn {
+    font-size: 11px; padding: 4px 12px; border-radius: 6px;
+    border: 1px solid #30363d; background: transparent; color: #484f58;
+    cursor: pointer; transition: all 0.15s; margin-left: 12px;
+  }
+  .reset-btn:hover { border-color: #f85149; color: #f85149; }
+  .export-html-btn {
+    font-size: 14px; font-weight: 600; padding: 12px 32px;
+    border-radius: 8px; border: none; cursor: pointer;
+    background: #1f6feb; color: #fff; transition: all 0.15s;
+    letter-spacing: 0.3px; margin-left: 12px;
+  }
+  .export-html-btn:hover { background: #388bfd; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Example App — Test Checklist</h1>
+  <div class="subtitle">2026-03-20 — All changes from today <button class="reset-btn" onclick="resetAll()">Reset All</button></div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-stats">
+      <span><span class="stat-pass" id="statPass">0 pass</span> · <span class="stat-fail" id="statFail">0 fail</span> · <span class="stat-attn" id="statAttn">0 attention</span> · <span class="stat-skip" id="statSkip">0 skip</span></span>
+      <span id="progressText">0 / 0 reviewed</span>
+    </div>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="submit-wrap">
+    <button class="submit-btn" id="submitBtn" disabled>Generate Review</button>
+    <button class="export-html-btn" id="exportHtmlBtn">Export as HTML</button>
+    <div class="submit-hint" id="submitHint">Review at least one item to enable</div>
+  </div>
+</div>
+
+<div class="output-overlay" id="outputOverlay">
+  <div class="output-box">
+    <div class="output-header">
+      <h3>Review Summary</h3>
+      <div class="output-actions">
+        <button onclick="closeOutput()">Close</button>
+        <button class="primary" onclick="copyOutput()">Copy to Clipboard</button>
+      </div>
+    </div>
+    <div class="output-body"><pre id="outputPre"></pre></div>
+  </div>
+</div>
+<div class="copied-toast" id="toast">Copied to clipboard</div>
+
+<script>
+const DATA = [
+  {
+    title: 'Example: Web App',
+    port: 'localhost:3000',
+    items: [
+      {
+        title: 'Audio card output meter',
+        desc: 'New live meter inside each audio mapping card',
+        steps: [
+          '<span class="action">Click the circle icon (AUDIO) in the left icon strip</span>',
+          '<span class="action">Click the AUDIO section header to expand it</span>',
+          '<span class="action">Click "+ Add Mapping" at the bottom of the section</span>',
+          'A mapping card appears with SOURCE, target dropdown, sliders, etc.',
+          '<span class="action">In the mapping card, click the FILE/MIC toggle and select FILE</span>',
+          '<span class="action">Click "Choose File" and pick any audio file (mp3, wav, etc.)</span>',
+          '<span class="action">Press the Play button on the mapping card</span>',
+          '<span class="expect">EXPECT: Below the OUTPUT SCALE slider, you should see a progress bar and a numeric value (e.g. "0.42") that animates in real time as the audio plays</span>',
+          '<span class="action">Try switching to MIC mode instead of FILE</span>',
+          '<span class="expect">EXPECT: The meter should respond to your voice / ambient sound</span>',
+        ]
+      },
+      {
+        title: 'Audio card layout',
+        desc: 'Padding, slider alignment, and search position fixes',
+        steps: [
+          '<span class="action">With an audio mapping card open (from previous test), look at the card edges</span>',
+          '<span class="expect">EXPECT: Left and right padding inside the card should be equal (symmetric) — no lopsided spacing</span>',
+          '<span class="action">Compare the slider thumbs/tracks in the audio card (Volume, Intensity, Smoothing, Output Scale) to sliders in other sections (e.g. NOISE or MATERIAL)</span>',
+          '<span class="expect">EXPECT: All slider thumbs should be the same size and style, tracks should align the same way</span>',
+          '<span class="action">Look at the target selection area in the mapping card</span>',
+          '<span class="expect">EXPECT: The order should be: TARGET label → value display → search box (search is BELOW the target value, not above it)</span>',
+        ]
+      },
+      {
+        title: 'Surface ripple — basic',
+        desc: 'New RIPPLE section with propagating sine waves',
+        steps: [
+          '<span class="action">Click the hexagon icon (OBJECT) in the left icon strip</span>',
+          '<span class="action">Scroll down in the sidebar until you find the RIPPLE section header</span>',
+          '<span class="action">Click the RIPPLE header to expand it</span>',
+          '<span class="action">Toggle the Enable switch to ON</span>',
+          '<span class="action">Set Amplitude to roughly 0.1 (drag the slider or type)</span>',
+          '<span class="action">Set Frequency to roughly 6</span>',
+          '<span class="expect">EXPECT: You should see horizontal sine-wave bands propagating across the blob surface in the viewport — like ripples on water</span>',
+          '<span class="action">Try adjusting Speed — increase and decrease it</span>',
+          '<span class="expect">EXPECT: Ripples should move faster or slower accordingly</span>',
+        ]
+      },
+      {
+        title: 'Ripple direction',
+        desc: 'Dir X/Y/Z sliders change wave propagation angle',
+        steps: [
+          '<span class="action">With RIPPLE enabled (from previous test), find the Dir X, Dir Y, Dir Z sliders</span>',
+          '<span class="action">Set Dir X to 1, Dir Y to 0, Dir Z to 0</span>',
+          '<span class="expect">EXPECT: Ripples propagate along the X axis (horizontal bands)</span>',
+          '<span class="action">Now set Dir X to 0, Dir Y to 1, Dir Z to 0</span>',
+          '<span class="expect">EXPECT: Ripples change direction — now propagating along Y (vertical bands)</span>',
+          '<span class="action">Set Dir X to 1, Dir Y to 1, Dir Z to 0</span>',
+          '<span class="expect">EXPECT: Ripples propagate diagonally</span>',
+        ]
+      },
+      {
+        title: 'Ripple + noise combo',
+        desc: 'Both effects should layer cleanly together',
+        steps: [
+          '<span class="action">With RIPPLE still enabled, scroll up to the NOISE section</span>',
+          '<span class="action">Set Noise Amplitude to something low like 0.05</span>',
+          '<span class="action">Look at the blob in the viewport</span>',
+          '<span class="expect">EXPECT: You should see BOTH the organic noise deformation AND the ripple waves layered on top — no visual glitches, z-fighting, or flickering</span>',
+          '<span class="action">Increase Noise Amplitude to 0.3+ and check again</span>',
+          '<span class="expect">EXPECT: Still clean — ripples visible on the noisier surface</span>',
+        ]
+      },
+    ]
+  },
+  {
+    title: 'Example: Voice Feature',
+    port: 'localhost:3001',
+    items: [
+      {
+        title: 'Startup',
+        desc: 'Server boots and UI loads correctly',
+        steps: [
+          '<span class="action">In terminal, cd to the project directory and run your start command</span>',
+          '<span class="action">Open http://localhost:3001 in your browser</span>',
+          '<span class="expect">EXPECT: Page loads with these visible elements:</span>',
+          '<span class="expect">— Top bar: green connection dot, uptime clock, circular restart button</span>',
+          '<span class="expect">— Center: agent state badge (should say "idle"), state orb animation, model name</span>',
+          '<span class="expect">— A large circular mic button (right side of the card)</span>',
+          '<span class="expect">— An audio waveform visualizer canvas (may be flat/empty until audio starts)</span>',
+          '<span class="expect">— A chat input row at the bottom with a text field and send button</span>',
+          '<span class="expect">— Top right: personality dropdown, settings button</span>',
+        ]
+      },
+      {
+        title: 'Server mic — full loop',
+        desc: 'Speak → transcribe → Claude responds → TTS plays',
+        steps: [
+          '<span class="action">Click the large circular mic button</span>',
+          '<span class="expect">EXPECT: Mic button changes to "on" state, mic status pill shows "on"</span>',
+          '<span class="action">Speak a clear sentence, like "What is the capital of France?"</span>',
+          '<span class="expect">EXPECT: Blue waveform appears in the visualizer canvas (your mic input)</span>',
+          '<span class="expect">EXPECT: Your transcribed text appears in the conversation log</span>',
+          '<span class="expect">EXPECT: Agent state badge changes to something like "thinking" or "speaking"</span>',
+          '<span class="expect">EXPECT: Claude responds with text in the conversation log</span>',
+          '<span class="expect">EXPECT: TTS audio plays back the response through your speakers</span>',
+          '<span class="expect">EXPECT: Green waveform appears in the visualizer during TTS playback</span>',
+        ]
+      },
+      {
+        title: 'Word sync',
+        desc: 'Words highlight in time with TTS audio',
+        steps: [
+          '<span class="action">Ask something that gets a longer response, like "Tell me a short story about a cat"</span>',
+          '<span class="action">Watch the conversation log while TTS plays</span>',
+          '<span class="expect">EXPECT: Words in the response text highlight one at a time, roughly in sync with the spoken audio</span>',
+          '<span class="action">Click "settings" button (top right) to open the settings sidebar</span>',
+          '<span class="action">Scroll to the Display section, find "Text Offset" slider</span>',
+          '<span class="action">Drag it to a positive value (e.g. 500)</span>',
+          '<span class="action">Trigger another TTS response</span>',
+          '<span class="expect">EXPECT: Word highlighting is now shifted — either ahead or behind the audio compared to before</span>',
+        ]
+      },
+      {
+        title: 'Mic toggle',
+        desc: 'Click and keyboard shortcut both work',
+        steps: [
+          '<span class="action">If mic is on, click the mic button to turn it off</span>',
+          '<span class="expect">EXPECT: Mic status shows "off", blue waveform stops</span>',
+          '<span class="action">Press the Space bar on your keyboard</span>',
+          '<span class="expect">EXPECT: Mic toggles back ON (status shows "on", waveform resumes if you speak)</span>',
+          '<span class="action">Press Space again</span>',
+          '<span class="expect">EXPECT: Mic toggles OFF again</span>',
+        ]
+      },
+      {
+        title: 'Interrupt',
+        desc: 'Escape key stops TTS immediately',
+        steps: [
+          '<span class="action">Ask a question that will get a long response (e.g. "Explain quantum physics")</span>',
+          '<span class="action">While TTS is actively speaking, press the Escape key</span>',
+          '<span class="expect">EXPECT: Audio stops immediately — mid-word, no fade out</span>',
+          '<span class="expect">EXPECT: Agent state returns to idle</span>',
+        ]
+      },
+      {
+        title: 'Browser audio mode',
+        desc: 'Mic input through Chrome instead of server-side Python',
+        steps: [
+          '<span class="action">Click "settings" button (top right) to open sidebar</span>',
+          '<span class="action">Scroll to the Display section</span>',
+          '<span class="action">Find "Browser Audio" checkbox and check it ON</span>',
+          '<span class="expect">EXPECT: Browser shows a mic permission prompt (Allow/Block)</span>',
+          '<span class="action">Click Allow</span>',
+          '<span class="action">Speak something clearly</span>',
+          '<span class="expect">EXPECT: Your speech is still transcribed and appears in the chat — now routed through Chrome\'s echo cancellation instead of server-side Python</span>',
+          '<span class="action">Turn Browser Audio back OFF when done (uncheck it)</span>',
+        ]
+      },
+      {
+        title: 'Echo prevention',
+        desc: 'the app doesn\'t hear and re-transcribe its own TTS output',
+        steps: [
+          '<span class="action">Make sure your mic is ON and your speakers are at normal volume (not muted)</span>',
+          '<span class="action">Ask a question and let TTS play back through your speakers while mic is listening</span>',
+          '<span class="action">Watch the conversation log carefully during and after TTS playback</span>',
+          '<span class="expect">EXPECT: the app\'s own spoken words do NOT appear as a new "you said" transcription in the chat</span>',
+          '<span class="expect">EXPECT: No feedback loop where the app responds to itself</span>',
+        ]
+      },
+      {
+        title: 'Settings persistence',
+        desc: 'Settings survive a server restart',
+        steps: [
+          '<span class="action">Open settings sidebar</span>',
+          '<span class="action">Change a few settings to non-default values you\'ll recognize, e.g.:</span>',
+          '— Set VAD Aggressiveness to 1 (if it\'s not already)',
+          '— Change Whisper Model to "small.en"',
+          '— Change a display color (any display color setting)',
+          '<span class="action">Close the settings sidebar</span>',
+          '<span class="action">Click the circular restart button in the top bar</span>',
+          '<span class="expect">EXPECT: Page briefly disconnects, then auto-reloads</span>',
+          '<span class="action">Open settings sidebar again</span>',
+          '<span class="expect">EXPECT: All the settings you changed are still at your custom values — they survived the restart</span>',
+        ]
+      },
+      {
+        title: 'Speculative query',
+        desc: 'Early query fires on pause, discarded if you keep talking',
+        steps: [
+          '<span class="action">Open settings sidebar → Agent section</span>',
+          '<span class="action">Find "Speculative Query" checkbox and turn it ON</span>',
+          '<span class="action">Close settings sidebar</span>',
+          '<span class="action">Turn mic ON, start speaking a sentence, then pause for about half a second, then continue talking</span>',
+          '<span class="expect">EXPECT: You might see brief activity (agent thinking) during the pause, but when you continue talking, any early result is discarded — no phantom response appears</span>',
+          '<span class="action">Now speak a full sentence and stop cleanly</span>',
+          '<span class="expect">EXPECT: Response comes back normally, using the speculative query result</span>',
+        ]
+      },
+      {
+        title: 'Streaming TTS',
+        desc: 'First sentence speaks before full response is ready',
+        steps: [
+          '<span class="action">Open settings sidebar → Agent section</span>',
+          '<span class="action">Find "Streaming TTS" checkbox and turn it ON</span>',
+          '<span class="action">Close settings sidebar</span>',
+          '<span class="action">Ask something that requires a multi-sentence response (e.g. "Give me 5 fun facts about octopuses")</span>',
+          '<span class="expect">EXPECT: TTS starts speaking the first sentence/fact while Claude is still generating the rest of the response — you hear audio before the full text appears in the chat</span>',
+        ]
+      },
+      {
+        title: 'Personality presets',
+        desc: 'Switching personality changes agent behavior',
+        steps: [
+          '<span class="action">Find the personality dropdown in the top right area (next to settings)</span>',
+          '<span class="action">Click the dropdown and see what presets are available</span>',
+          '<span class="action">Select a different personality preset</span>',
+          '<span class="action">Ask a question and listen to the response</span>',
+          '<span class="expect">EXPECT: The agent\'s tone, style, or behavior changes to match the selected personality</span>',
+          '<span class="action">Optionally: click the "+" button to create a new personality, or "edit" to modify one</span>',
+        ]
+      },
+      {
+        title: 'Export conversation',
+        desc: 'Download chat history as .txt file',
+        steps: [
+          '<span class="action">Have at least one exchange in the conversation (from earlier tests)</span>',
+          '<span class="action">Look for an export/download button in the UI</span>',
+          '<span class="action">Click it</span>',
+          '<span class="expect">EXPECT: A .txt file downloads with a timestamp in the filename</span>',
+          '<span class="action">Open the downloaded file</span>',
+          '<span class="expect">EXPECT: Contains your conversation history — your messages and the app\'s responses with timestamps</span>',
+        ]
+      },
+      {
+        title: 'Restart button',
+        desc: 'Circular restart icon restarts everything cleanly',
+        steps: [
+          '<span class="action">Find the circular restart button in the top bar (near the connection dot / uptime)</span>',
+          '<span class="action">Click it</span>',
+          '<span class="expect">EXPECT: Connection dot turns red/disconnected briefly</span>',
+          '<span class="expect">EXPECT: Page auto-reloads after a few seconds</span>',
+          '<span class="expect">EXPECT: Connection dot turns green again, uptime resets to 0</span>',
+          '<span class="expect">EXPECT: If "Persist Session" is on in settings, the conversation context should still be available</span>',
+        ]
+      },
+      {
+        title: 'Keyboard shortcuts',
+        desc: 'Space, Escape, and Enter all work',
+        steps: [
+          '<span class="action">Make sure the chat input is NOT focused (click somewhere else on the page)</span>',
+          '<span class="action">Press Space</span>',
+          '<span class="expect">EXPECT: Mic toggles on</span>',
+          '<span class="action">Press Space again</span>',
+          '<span class="expect">EXPECT: Mic toggles off</span>',
+          '<span class="action">Click into the chat text input and type a message</span>',
+          '<span class="action">Press Enter</span>',
+          '<span class="expect">EXPECT: Message sends (same as clicking the send button)</span>',
+          '<span class="action">While TTS is playing, press Escape</span>',
+          '<span class="expect">EXPECT: TTS stops immediately</span>',
+        ]
+      },
+    ]
+  },
+  {
+    title: 'Example: Dashboard',
+    port: 'localhost:3002',
+    items: [
+      {
+        title: 'Server restart',
+        desc: 'Pick up today\'s code changes',
+        steps: [
+          '<span class="action">In terminal, stop the current Example: Dashboard server (Ctrl+C)</span>',
+          '<span class="action">Restart it (run the start command again — ./run.sh or node src/server.js)</span>',
+          '<span class="action">Open http://localhost:3002 in your browser</span>',
+          '<span class="expect">EXPECT: Page loads with header (connection dot, PM count, uptime, settings button), Director status bar, empty PM grid, and chat panel on the right</span>',
+          '<span class="expect">EXPECT: Green connection dot = server is running</span>',
+        ]
+      },
+      {
+        title: 'Chat panel width',
+        desc: 'Widened from old size to 420px',
+        steps: [
+          '<span class="action">Look at the chat panel on the right side of the page</span>',
+          '<span class="expect">EXPECT: Chat panel should feel wider than before — roughly 420px. It should comfortably fit longer messages without feeling cramped</span>',
+          '<span class="action">Optionally: right-click the chat panel → Inspect Element → check the computed width in CSS</span>',
+          '<span class="expect">EXPECT: Width is 420px (set via grid-template-columns)</span>',
+        ]
+      },
+      {
+        title: 'Assign a task',
+        desc: 'Basic end-to-end task flow still works',
+        steps: [
+          '<span class="action">Click into the chat input at the bottom of the chat panel</span>',
+          '<span class="action">Type a task, e.g. "Create a simple hello world HTML file"</span>',
+          '<span class="action">Press Enter or click the send button (↑ arrow)</span>',
+          '<span class="expect">EXPECT: Director status bar updates (e.g. "Routing task...")</span>',
+          '<span class="expect">EXPECT: A new PM card appears in the grid with a project name</span>',
+          '<span class="expect">EXPECT: PM card shows "working" status with animated dot</span>',
+          '<span class="expect">EXPECT: Chat shows Director messages about routing the task</span>',
+          '<span class="action">Wait for the PM to finish</span>',
+          '<span class="expect">EXPECT: PM card returns to idle, chat shows completion message with cost</span>',
+        ]
+      },
+      {
+        title: 'Director routing — reply',
+        desc: 'Conversational reply auto-forwards to waiting PM',
+        steps: [
+          '<span class="action">Send a task that will trigger a question, e.g. "Set up a new React project" (PMs often ask clarifying questions)</span>',
+          '<span class="action">Wait for the PM card to show "Needs your input" with a question displayed</span>',
+          '<span class="expect">EXPECT: PM card border turns amber, question text visible on the card</span>',
+          '<span class="action">In the chat input, type a conversational reply like "yes, use TypeScript" and press Enter</span>',
+          '<span class="expect">EXPECT: Your reply is automatically forwarded to the waiting PM — the Director recognizes it\'s a reply, NOT a new task</span>',
+          '<span class="expect">EXPECT: PM card returns to "working" state, question disappears</span>',
+          '<span class="expect">EXPECT: Chat may show a "reply forwarded" message from the Director</span>',
+        ]
+      },
+      {
+        title: 'Director routing — new task',
+        desc: 'New task recognized even when a PM is waiting',
+        steps: [
+          '<span class="action">Get a PM into "Needs your input" state again (assign a task, wait for question)</span>',
+          '<span class="action">Instead of answering the question, type something clearly different: "Work on a completely different project — build a Python CLI tool"</span>',
+          '<span class="action">Press Enter</span>',
+          '<span class="expect">EXPECT: Director treats this as a NEW task, not a reply to the waiting PM</span>',
+          '<span class="expect">EXPECT: A second PM card appears (or Director assigns to a different PM)</span>',
+          '<span class="expect">EXPECT: The first PM is STILL waiting for input — it wasn\'t affected</span>',
+        ]
+      },
+      {
+        title: 'Director routing — multiple PMs',
+        desc: 'Name-based routing when 2+ PMs are waiting',
+        steps: [
+          '<span class="action">Get two PMs into "Needs your input" state simultaneously (assign two tasks, wait for both to ask questions)</span>',
+          '<span class="action">Note the project names on both PM cards (e.g. "hello-world" and "python-cli")</span>',
+          '<span class="action">In chat, type a reply that mentions one PM by name: "For hello-world — yes, use TypeScript"</span>',
+          '<span class="action">Press Enter</span>',
+          '<span class="expect">EXPECT: Reply routes to the correct PM (hello-world), not the other one</span>',
+          '<span class="expect">EXPECT: The other PM is still waiting for its own input</span>',
+        ]
+      },
+      {
+        title: 'Kill commands',
+        desc: 'Meta-commands intercept instead of being sent as replies',
+        steps: [
+          '<span class="action">Have a PM actively working on a task (status: "working")</span>',
+          '<span class="action">Type "kill" in the chat input and press Enter</span>',
+          '<span class="expect">EXPECT: The kill command is intercepted — it does NOT get sent to the PM as a chat reply</span>',
+          '<span class="expect">EXPECT: The PM is terminated (card shows shutdown/killed state)</span>',
+          '<span class="action">Start another PM working, then try these variants one at a time:</span>',
+          '— Type "stop" → should intercept',
+          '— Type "cancel" → should intercept',
+          '— Type "terminate" → should intercept',
+          '<span class="expect">EXPECT: All variants are caught as meta-commands, not forwarded as replies</span>',
+        ]
+      },
+      {
+        title: 'Quick reply — natural labels',
+        desc: 'Buttons show clean text, not raw question fragments',
+        steps: [
+          '<span class="action">Trigger a PM question that has yes/no style options (e.g. assign a task like "Refactor this messy file" — PMs often ask "Do you want to start fresh or modify in place?")</span>',
+          '<span class="action">Look at the quick reply buttons that appear below the question in the chat</span>',
+          '<span class="expect">EXPECT: Buttons show clean natural text like "Start fresh" and "Modify in place" — NOT the full question fragment like "do you want to start fresh"</span>',
+          '<span class="expect">EXPECT: Question framing words (is, do, does, are, should, would, could) are stripped from the start of labels</span>',
+        ]
+      },
+      {
+        title: 'Quick reply — vertical stacking',
+        desc: '3+ option buttons stack vertically',
+        steps: [
+          '<span class="action">Trigger a PM question with 3 or more options (e.g. "Set up a web project" might give options like React/Vue/Svelte)</span>',
+          '<span class="action">Look at the quick reply buttons below the question</span>',
+          '<span class="expect">EXPECT: When there are 3+ buttons, they stack vertically (one per line) instead of side by side</span>',
+          '<span class="expect">EXPECT: Each button has a minimum width of 60px — no tiny buttons</span>',
+        ]
+      },
+      {
+        title: 'Quick reply — wh-question safety',
+        desc: 'Who/what/where/why questions don\'t get yes/no buttons',
+        steps: [
+          '<span class="action">Trigger a PM question that starts with "what", "where", "how", "why", or "who" (e.g. assign "improve the logging" — PM might ask "What logging format do you prefer?")</span>',
+          '<span class="action">Look at the quick reply area</span>',
+          '<span class="expect">EXPECT: NO yes/no buttons appear for wh-questions — these questions can\'t be answered with yes or no, so buttons shouldn\'t show</span>',
+          '<span class="expect">EXPECT: You can still type a free-text reply in the chat input</span>',
+        ]
+      },
+      {
+        title: 'Quick reply — bullet filtering',
+        desc: 'Long items and questions excluded from buttons',
+        steps: [
+          '<span class="action">This is hard to trigger intentionally — watch for PM responses that contain bulleted lists</span>',
+          '<span class="expect">EXPECT: Bulleted items that end with "?" are NOT turned into buttons (they\'re sub-questions, not actionable options)</span>',
+          '<span class="expect">EXPECT: Bulleted items longer than 60 characters are NOT turned into buttons (too long for a button label)</span>',
+          '<span class="action">If you can\'t trigger this naturally, mark as SKIP with a note</span>',
+        ]
+      },
+      {
+        title: 'Question synthesis',
+        desc: 'Long PM output condensed to just the question',
+        steps: [
+          '<span class="action">Assign a task that requires the PM to do research before asking (e.g. "Analyze the codebase and suggest improvements")</span>',
+          '<span class="action">Wait for the PM to reach "Needs your input" with a question</span>',
+          '<span class="action">Look at how the question is displayed in the chat</span>',
+          '<span class="expect">EXPECT: The actual question is shown prominently at the top — short and clear</span>',
+          '<span class="expect">EXPECT: The long technical details / context from the PM are tucked into a collapsible "Full context" section below</span>',
+          '<span class="action">Click "Full context" to expand it</span>',
+          '<span class="expect">EXPECT: Full raw PM output is visible inside the collapsed section</span>',
+        ]
+      },
+      {
+        title: 'PM deletion protection',
+        desc: 'PM template RULE #1 prevents destructive commands',
+        steps: [
+          '<span class="action">Assign a task that involves files, e.g. "Clean up the temp files in this project"</span>',
+          '<span class="action">Watch the PM\'s behavior (via chat output or "View report" link)</span>',
+          '<span class="expect">EXPECT: The PM asks for confirmation before running any destructive commands (rm, delete, remove, etc.)</span>',
+          '<span class="expect">EXPECT: The PM does NOT silently delete files without checking with you first</span>',
+          '<span class="action">If the PM asks about deletion, reply with "no" or "don\'t delete anything"</span>',
+          '<span class="expect">EXPECT: PM respects your decision and does not proceed with deletion</span>',
+        ]
+      },
+    ]
+  }
+];
+
+const VERDICTS = ['pass', 'fail', 'attention', 'skip'];
+const VERDICT_LABELS = { pass: 'Pass', fail: 'Fail', attention: 'Needs Attention', skip: 'Skip' };
+
+// If this file was exported with baked-in state, EMBEDDED_STATE will be set before this script.
+// Use embedded state as starting point, then save to localStorage so the recipient can edit.
+const HAS_EMBEDDED = typeof EMBEDDED_STATE !== 'undefined' && EMBEDDED_STATE !== null;
+const localState = JSON.parse(localStorage.getItem('checklist-v1') || 'null');
+const state = (HAS_EMBEDDED && !localState) ? JSON.parse(JSON.stringify(EMBEDDED_STATE)) : (localState || {});
+const IS_READONLY = false; // always editable — embedded state just pre-fills
+
+const root = document.getElementById('sections');
+let totalItems = 0;
+
+DATA.forEach((section, si) => {
+  const div = document.createElement('div');
+  div.className = 'section';
+
+  const countSpan = document.createElement('span');
+  countSpan.className = 'section-count';
+
+  const header = document.createElement('div');
+  header.className = 'section-header';
+  header.innerHTML = `<h2>${section.title}</h2><span class="section-port">${section.port}</span>`;
+  header.appendChild(countSpan);
+  div.appendChild(header);
+
+  const divider = document.createElement('div');
+  divider.className = 'section-divider';
+  div.appendChild(divider);
+
+  section.items.forEach((item, ii) => {
+    const key = `${si}-${ii}`;
+    const saved = state[key] || {};
+    totalItems++;
+
+    const row = document.createElement('div');
+    row.className = 'item' + (saved.verdict ? ` status-${saved.verdict}` : '');
+    row.dataset.key = key;
+
+    const content = document.createElement('div');
+    content.className = 'item-content';
+    content.innerHTML = `<div class="item-title">${item.title}</div><div class="item-desc">${item.desc}</div>`;
+    row.appendChild(content);
+
+    // Steps
+    const stepsCollapsed = saved.stepsCollapsed !== undefined ? saved.stepsCollapsed : false;
+    const stepsDiv = document.createElement('div');
+    stepsDiv.className = 'item-steps' + (stepsCollapsed ? ' collapsed' : '');
+    const ol = document.createElement('ol');
+    item.steps.forEach(s => {
+      const li = document.createElement('li');
+      li.innerHTML = s;
+      ol.appendChild(li);
+    });
+    stepsDiv.appendChild(ol);
+    row.appendChild(stepsDiv);
+
+    const stepsBtn = document.createElement('button');
+    stepsBtn.className = 'steps-toggle';
+    stepsBtn.textContent = stepsCollapsed ? 'show steps' : 'hide steps';
+    stepsBtn.addEventListener('click', () => {
+      const isCollapsed = !stepsDiv.classList.contains('collapsed');
+      stepsDiv.classList.toggle('collapsed', isCollapsed);
+      stepsBtn.textContent = isCollapsed ? 'show steps' : 'hide steps';
+      const cur = state[key] || {};
+      cur.stepsCollapsed = isCollapsed;
+      state[key] = cur;
+      save();
+    });
+    row.appendChild(stepsBtn);
+
+    // Verdict buttons + comment toggle
+    const verdictRow = document.createElement('div');
+    verdictRow.className = 'verdict-row';
+
+    VERDICTS.forEach(v => {
+      const btn = document.createElement('button');
+      btn.className = 'verdict-btn' + (saved.verdict === v ? ` active-${v}` : '');
+      btn.textContent = VERDICT_LABELS[v];
+      btn.addEventListener('click', () => {
+        const cur = state[key] || {};
+        if (cur.verdict === v) {
+          delete cur.verdict;
+          row.className = 'item';
+        } else {
+          cur.verdict = v;
+          row.className = `item status-${v}`;
+        }
+        state[key] = cur;
+        if (!cur.verdict && !cur.comment && cur.stepsCollapsed === undefined) delete state[key];
+        save();
+        verdictRow.querySelectorAll('.verdict-btn').forEach(b => {
+          b.className = 'verdict-btn' + (cur.verdict && VERDICT_LABELS[cur.verdict] === b.textContent ? ` active-${cur.verdict}` : '');
+        });
+      });
+      verdictRow.appendChild(btn);
+    });
+
+    const commentBtn = document.createElement('button');
+    commentBtn.className = 'comment-toggle' + (saved.comment ? ' has-comment' : '');
+    commentBtn.textContent = saved.comment ? 'comment' : '+ comment';
+    commentBtn.addEventListener('click', () => {
+      const area = row.querySelector('.comment-area');
+      area.classList.toggle('visible');
+      if (area.classList.contains('visible')) area.querySelector('textarea').focus();
+    });
+    verdictRow.appendChild(commentBtn);
+    row.appendChild(verdictRow);
+
+    const commentArea = document.createElement('div');
+    commentArea.className = 'comment-area' + (saved.comment ? ' visible' : '');
+    const ta = document.createElement('textarea');
+    ta.placeholder = 'What happened? What needs fixing?';
+    ta.value = saved.comment || '';
+    ta.addEventListener('input', () => {
+      const cur = state[key] || {};
+      cur.comment = ta.value || undefined;
+      if (!cur.comment) delete cur.comment;
+      state[key] = cur;
+      if (!cur.verdict && !cur.comment && cur.stepsCollapsed === undefined) delete state[key];
+      commentBtn.className = 'comment-toggle' + (cur.comment ? ' has-comment' : '');
+      commentBtn.textContent = cur.comment ? 'comment' : '+ comment';
+      save();
+    });
+    commentArea.appendChild(ta);
+    row.appendChild(commentArea);
+
+    div.appendChild(row);
+  });
+
+  root.appendChild(div);
+});
+
+function save() {
+  localStorage.setItem('checklist-v1', JSON.stringify(state));
+  updateCounts();
+}
+
+function updateCounts() {
+  let reviewed = 0, pass = 0, fail = 0, attn = 0, skip = 0;
+  Object.values(state).forEach(s => {
+    if (!s.verdict) return;
+    reviewed++;
+    if (s.verdict === 'pass') pass++;
+    if (s.verdict === 'fail') fail++;
+    if (s.verdict === 'attention') attn++;
+    if (s.verdict === 'skip') skip++;
+  });
+
+  const pct = totalItems > 0 ? (reviewed / totalItems) * 100 : 0;
+  document.getElementById('progressFill').style.width = `${pct}%`;
+  document.getElementById('progressText').textContent = `${reviewed} / ${totalItems} reviewed`;
+  document.getElementById('statPass').textContent = `${pass} pass`;
+  document.getElementById('statFail').textContent = `${fail} fail`;
+  document.getElementById('statAttn').textContent = `${attn} attention`;
+  document.getElementById('statSkip').textContent = `${skip} skip`;
+
+  const btn = document.getElementById('submitBtn');
+  const exportBtn = document.getElementById('exportHtmlBtn');
+  const hint = document.getElementById('submitHint');
+  if (reviewed > 0) {
+    btn.disabled = false;
+    hint.textContent = reviewed < totalItems ? `${totalItems - reviewed} items not yet reviewed` : 'All items reviewed';
+  } else {
+    btn.disabled = true;
+    hint.textContent = 'Review at least one item to enable';
+  }
+
+  DATA.forEach((section, si) => {
+    const sectionEl = root.children[si];
+    const sectionReviewed = section.items.filter((_, ii) => state[`${si}-${ii}`]?.verdict).length;
+    sectionEl.querySelector('.section-count').textContent = `${sectionReviewed} / ${section.items.length}`;
+  });
+}
+
+function generateOutput() {
+  let lines = [];
+  lines.push('# Example App Test Review — 2026-03-20');
+  lines.push('');
+
+  let pass = 0, fail = 0, attn = 0, skip = 0, unreviewed = 0;
+  DATA.forEach((section, si) => {
+    section.items.forEach((_, ii) => {
+      const v = state[`${si}-${ii}`]?.verdict;
+      if (v === 'pass') pass++;
+      else if (v === 'fail') fail++;
+      else if (v === 'attention') attn++;
+      else if (v === 'skip') skip++;
+      else unreviewed++;
+    });
+  });
+  lines.push(`## Summary: ${pass} pass, ${fail} fail, ${attn} needs attention, ${skip} skipped` + (unreviewed ? `, ${unreviewed} not reviewed` : ''));
+  lines.push('');
+
+  DATA.forEach((section, si) => {
+    lines.push(`## ${section.title} (${section.port})`);
+    lines.push('');
+    section.items.forEach((item, ii) => {
+      const key = `${si}-${ii}`;
+      const s = state[key] || {};
+      const icon = s.verdict === 'pass' ? 'PASS' : s.verdict === 'fail' ? 'FAIL' : s.verdict === 'attention' ? 'ATTN' : s.verdict === 'skip' ? 'SKIP' : '----';
+      lines.push(`[${icon}] ${item.title}`);
+      if (s.comment) {
+        s.comment.split('\n').forEach(l => lines.push(`       ${l}`));
+      }
+    });
+    lines.push('');
+  });
+
+  return lines.join('\n');
+}
+
+function resetAll() {
+  if (confirm('Reset all verdicts and comments? This cannot be undone.')) {
+    localStorage.removeItem('checklist-v1');
+    location.reload();
+  }
+}
+
+function exportAsHtml() {
+  // Build export state: copy current state but force all steps expanded
+  const exportState = {};
+  DATA.forEach((section, si) => {
+    section.items.forEach((_, ii) => {
+      const key = `${si}-${ii}`;
+      const cur = state[key] || {};
+      // Always include every item so steps render, force steps open
+      const entry = { ...cur };
+      delete entry.stepsCollapsed; // all steps expanded in export
+      exportState[key] = entry;
+    });
+  });
+
+  const stateJson = JSON.stringify(exportState, null, 2);
+  const injection = `<script>var EMBEDDED_STATE = ${stateJson};<\/script>`;
+
+  // Get the original HTML source by re-fetching it, or reconstruct from current DOM
+  // Safest: grab outerHTML and inject before first <script> in body
+  const html = document.documentElement.outerHTML;
+  const injected = html.replace(/<script>/, injection + '\n<script>');
+
+  const fullHtml = `<!DOCTYPE html>\n${injected}`;
+  const now = new Date();
+  const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const filename = `checklist-${ts}.html`;
+
+  // Try blob URL first, fall back to data URI (file:// blocks blob downloads)
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.download = filename;
+  document.body.appendChild(a);
+
+  try {
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  } catch (e) {
+    // Fallback: data URI
+    a.href = 'data:text/html;charset=utf-8,' + encodeURIComponent(fullHtml);
+    a.click();
+    setTimeout(() => a.remove(), 1000);
+  }
+}
+
+document.getElementById('submitBtn').addEventListener('click', () => {
+  const output = generateOutput();
+  document.getElementById('outputPre').textContent = output;
+  document.getElementById('outputOverlay').classList.add('visible');
+});
+
+document.getElementById('exportHtmlBtn').addEventListener('click', exportAsHtml);
+
+function closeOutput() {
+  document.getElementById('outputOverlay').classList.remove('visible');
+}
+
+function copyOutput() {
+  const text = document.getElementById('outputPre').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('visible');
+    setTimeout(() => toast.classList.remove('visible'), 1500);
+  });
+}
+
+document.getElementById('outputOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeOutput();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeOutput();
+});
+
+updateCounts();
+</script>
+</body>
+</html>
